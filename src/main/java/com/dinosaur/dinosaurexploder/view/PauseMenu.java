@@ -15,8 +15,6 @@ import com.almasb.fxgl.ui.FontType;
 import com.dinosaur.dinosaurexploder.components.AchievementsComponent;
 import com.dinosaur.dinosaurexploder.components.AudioControlsComponent;
 import com.dinosaur.dinosaurexploder.components.AudioControlsComponent.VolumeType;
-import com.dinosaur.dinosaurexploder.components.GameControlsComponent;
-import com.dinosaur.dinosaurexploder.components.GameControlsComponent.ControlType;
 import com.dinosaur.dinosaurexploder.constants.GameConstants;
 import com.dinosaur.dinosaurexploder.model.Settings;
 import com.dinosaur.dinosaurexploder.utils.AudioManager;
@@ -61,23 +59,6 @@ public class PauseMenu extends FXGLMenu {
   ControlButton btnAchievements = new ControlButton(languageManager.getTranslation("achievements"));
   OptionsButton btnSoundMain = new OptionsButton(languageManager.getTranslation("sound_main"));
   OptionsButton btnSoundSfx = new OptionsButton(languageManager.getTranslation("sound_sfx"));
-
-  // Control buttons using GameControlsComponent
-  OptionsButton btnMoveUp =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.MOVE_UP));
-  OptionsButton btnMoveDown =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.MOVE_DOWN));
-  OptionsButton btnMoveRight =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.MOVE_RIGHT));
-  OptionsButton btnMoveLeft =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.MOVE_LEFT));
-  OptionsButton btnPauseGame =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.PAUSE_GAME));
-  OptionsButton btnShoot =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.SHOOT));
-  OptionsButton btnBomb = new OptionsButton(GameControlsComponent.getControlText(ControlType.BOMB));
-  OptionsButton btnShield =
-      new OptionsButton(GameControlsComponent.getControlText(ControlType.SHIELD));
 
   public PauseMenu() {
     super(MenuType.GAME_MENU);
@@ -169,64 +150,7 @@ public class PauseMenu extends FXGLMenu {
         .selectedLanguageProperty()
         .addListener((obs, oldValue, newValue) -> updateTexts());
 
-    // Controls button action → Opens controls overlay
-    btnControls.setControlAction(
-        () -> {
-          // 1. Fond sombre pour le sous-menu
-          var controlsBg = new Rectangle(getAppWidth(), getAppHeight(), Color.color(0, 0, 0, 0.85));
-
-          // 2. VBox pour aligner les touches verticalement
-          var controlsBox = new VBox(10);
-          controlsBox.setAlignment(Pos.CENTER);
-          controlsBox.setMaxWidth(getAppWidth() * 0.7);
-
-          // 3. Conteneur global pour centrer la box (C'est lui qu'on affichera/supprimera)
-          StackPane controlsContainer = new StackPane(controlsBox);
-          controlsContainer.setPrefSize(getAppWidth(), getAppHeight());
-          controlsContainer.setAlignment(Pos.CENTER);
-
-          // 4. Bouton de retour spécifique au menu contrôles
-          PauseButton btnBackFromControls =
-              new PauseButton(
-                  languageManager.getTranslation("back"),
-                  () -> {
-                    // ✅ On retire les deux éléments que l'on a ajouté au Root
-                    getContentRoot().getChildren().removeAll(controlsBg, controlsContainer);
-
-                    // Réactive le menu principal
-                    btnBack.enable();
-                    btnQuitGame.enable();
-                    btnControls.enable();
-                    btnSound.enable();
-                    btnAchievements.enable();
-                  });
-
-          VBox.setMargin(btnBackFromControls, new Insets(0, 0, 40, 0));
-
-          // 5. Ajout des boutons et textes dans la boîte
-          controlsBox
-              .getChildren()
-              .addAll(
-                  btnBackFromControls,
-                  btnMoveUp,
-                  btnMoveDown,
-                  btnMoveRight,
-                  btnMoveLeft,
-                  btnPauseGame,
-                  btnShoot,
-                  btnBomb,
-                  btnShield);
-
-          // Désactivation temporaire des boutons en arrière-plan
-          btnBack.disable();
-          btnQuitGame.disable();
-          btnControls.disable();
-          btnSound.disable();
-          btnAchievements.disable();
-
-          // ✅ Ajout à l'affichage (le container est par-dessus le reste)
-          getContentRoot().getChildren().addAll(controlsBg, controlsContainer);
-        });
+    btnControls.setControlAction(() -> FXGL.getSceneService().pushSubScene(new ControlsMenu()));
 
     // Adjust sound menu
     btnSound.setControlAction(
@@ -466,16 +390,6 @@ public class PauseMenu extends FXGLMenu {
     btnQuitGame.setText(languageManager.getTranslation("quit").toUpperCase());
     btnControls.setText(languageManager.getTranslation("controls").toUpperCase());
     btnAchievements.setText(languageManager.getTranslation("achievements").toUpperCase());
-
-    // Update control buttons using GameControlsComponent
-    btnMoveUp.setText(GameControlsComponent.getControlText(ControlType.MOVE_UP));
-    btnMoveDown.setText(GameControlsComponent.getControlText(ControlType.MOVE_DOWN));
-    btnMoveRight.setText(GameControlsComponent.getControlText(ControlType.MOVE_RIGHT));
-    btnMoveLeft.setText(GameControlsComponent.getControlText(ControlType.MOVE_LEFT));
-    btnPauseGame.setText(GameControlsComponent.getControlText(ControlType.PAUSE_GAME));
-    btnShoot.setText(GameControlsComponent.getControlText(ControlType.SHOOT));
-    btnBomb.setText(GameControlsComponent.getControlText(ControlType.BOMB));
-    btnShield.setText(GameControlsComponent.getControlText(ControlType.SHIELD));
   }
 
   // ------------------- QUIT POPUP -----------------------
