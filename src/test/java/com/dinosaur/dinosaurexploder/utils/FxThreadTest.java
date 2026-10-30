@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package com.dinosaur.dinosaurexploder;
+package com.dinosaur.dinosaurexploder.utils;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,14 +17,14 @@ import java.util.concurrent.CompletionException;
 import javafx.application.Platform;
 import org.junit.jupiter.api.Test;
 
-class DinosaurWebAppTest {
+class FxThreadTest {
   @Test
   void runsImmediatelyOnFxThread() {
     try (var platform = mockStatic(Platform.class)) {
       platform.when(Platform::isFxApplicationThread).thenReturn(true);
       Runnable action = mock(Runnable.class);
 
-      DinosaurWebApp.runOnFxThread(action);
+      FxThread.runAndWait(action);
 
       verify(action).run();
       platform.verify(() -> Platform.runLater(any()), never());
@@ -44,7 +44,7 @@ class DinosaurWebAppTest {
               });
       Runnable action = mock(Runnable.class);
 
-      DinosaurWebApp.runOnFxThread(action);
+      FxThread.runAndWait(action);
 
       verify(action).run();
       platform.verify(() -> Platform.runLater(any()));
@@ -68,7 +68,7 @@ class DinosaurWebAppTest {
           assertThrows(
               CompletionException.class,
               () ->
-                  DinosaurWebApp.runOnFxThread(
+                  FxThread.runAndWait(
                       () -> {
                         throw failure;
                       }));
@@ -87,7 +87,7 @@ class DinosaurWebAppTest {
           assertThrows(
               IllegalStateException.class,
               () ->
-                  DinosaurWebApp.runOnFxThread(
+                  FxThread.runAndWait(
                       () -> {
                         throw failure;
                       }));

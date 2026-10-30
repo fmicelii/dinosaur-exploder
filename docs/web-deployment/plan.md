@@ -4,7 +4,7 @@ Requirements and acceptance gates: [Specification](spec.md).
 
 ## Working rules
 
-- Work on `feat/jpro-web-deployment`; preserve the old Render branch.
+- Work on `feat/web-deployment`; preserve the old Render branch.
 - Keep changes focused and independently reviewable. Do not import the old
   deployment wholesale.
 - Record exact commands, results, environment, and commit for evidence.
@@ -21,7 +21,7 @@ Requirements and acceptance gates: [Specification](spec.md).
 - [x] Create the implementation branch.
 - [ ] Inspect the upstream browser-hosting issue and historical Render PR,
       including actual changes and available performance evidence.
-- [ ] Inspect the current Maven/JPro build configuration and native requirements.
+- [x] Inspect the current Maven/JPro build configuration and native requirements.
 - [x] Run `mvn -B package --file pom.xml`, the existing Maven CI build command.
       It includes tests; do not rerun them separately unless needed.
 - [x] Diagnose Java launch tooling and verify the actual JPro HTTP server entry point.
@@ -35,15 +35,15 @@ from deployment hypotheses. A failed gate blocks dependent work, not reporting.
 - [ ] Trace FXGL lifecycle, global/static state, input handlers, save files,
       settings, achievements, timers, and disconnect cleanup.
 - [ ] Exercise two separate browser contexts with different actions/settings.
-- [ ] Decide from evidence whether the existing embedding supports concurrent
+- [x] Decide from evidence whether the existing embedding supports concurrent
       isolated sessions in one process. Do not assume JPro isolation solves
       FXGL global state.
 - [ ] Implement only necessary browser compatibility/isolation changes.
       If process isolation is required, estimate its resource and operational
       cost before choosing an architecture.
-- [ ] Use isolated session-only progress initially if durable browser saves
+- [x] Use isolated session-only progress initially if durable browser saves
       require new identity/storage infrastructure; leave desktop saves intact.
-- [ ] Add targeted regression tests and rerun affected desktop tests.
+- [x] Add targeted regression tests and rerun affected desktop tests.
 - [ ] Verify refresh, disconnect, restart, and resource cleanup.
 
 Exit: the specification's isolation requirements pass. Otherwise document
@@ -51,15 +51,15 @@ the blocker and reconsider the execution model before hosting work.
 
 ## 3. Package the verified game
 
-- [ ] Execute the actual JPro release goal and inspect output and launcher;
+- [x] Execute the actual JPro release goal and inspect output and launcher;
       do not assume an archive name, profile, port, or JVM option mechanism.
-- [ ] Select a supported Linux runtime image from verified native dependencies.
-- [ ] Add a multi-stage Dockerfile and focused build-context exclusions.
+- [x] Select a supported Linux runtime image from verified native dependencies.
+- [x] Add a multi-stage Dockerfile and focused build-context exclusions.
 - [ ] Verify configuration injection, non-root execution, signal handling,
       readiness, and useful error logs.
 - [ ] Set measured resource limits with native-memory headroom.
-- [ ] Build and run from a clean source context; verify gameplay and restart.
-- [ ] Document commands another contributor can reproduce.
+- [x] Build and run from a clean source context; verify gameplay and restart.
+- [x] Document commands another contributor can reproduce.
 
 Exit: a reproducible Linux container with the same tested browser behavior.
 
@@ -138,6 +138,11 @@ different review structure.
 | 2026-10-28 | Patched browser verification with ProcDump attached | Passed specialty locked-dialog/None/Next flow, first-game start, pause/resume, bomb counter decrement, game over -> Restart -> five-life HUD -> responsive pause. Arrow-left input moved the rendered ship from x=230 to x=206. Native crash did not recur; no unhandled-crash dump was produced |
 | 2026-10-28 | `mvn -B package --file pom.xml` after fix | Passed: 91 tests, 0 failures, 0 errors, 0 skipped |
 | 2026-10-28 | Final cleanup and `git diff --check` | Passed; game/Maven/ProcDump processes stopped, ports 8080/8081 have no listeners, controlled browser navigated to blank, temporary task/PID file removed |
+| 2026-10-29 | Isolation decision | Shared-JVM deployment rejected from application and FXGL static-state evidence; select JPro's single-session JVM pool for runtime validation. See [decision](isolation.md) |
+| 2026-10-29 | Pinned JPro load balancer inspection | Version 2025.3.3 artifact exists; packaged properties include single-session JVM limits and isolated home mode. Worker bytecode sets a distinct working directory; sequential save reset still requires verification |
+| 2026-10-29 | `mvn -B package jpro:release '-Djpro.releasePlatforms=linux'` | Failed in tests with stale compiled `Direction` references; release not produced by this attempt |
+| 2026-10-29 | `mvn -B clean package jpro:release '-Djpro.releasePlatforms=linux'` | Passed: 91 tests, no failures/errors/skips; inspected Linux JavaFX jars and generated launcher in release ZIP; no source workaround or test bypass |
+| 2026-10-29 | Linux runtime prerequisite | Docker is not installed; no Linux container runtime is configured. Runtime isolation and Linux acceptance remain unverified |
 
 ## Reproducible local launch
 
@@ -169,7 +174,7 @@ FXGL initialization task. It runs inline if already on the JavaFX thread.
 FXGL's existing `startAsyncFX(...).await()` helper was inspected but does not
 propagate callback failure to the waiting caller, so it was not used here.
 Regression coverage lives in
-[DinosaurWebAppTest](../../src/test/java/com/dinosaur/dinosaurexploder/DinosaurWebAppTest.java).
+[FxThreadTest](../../src/test/java/com/dinosaur/dinosaurexploder/utils/FxThreadTest.java).
 
 The successful browser sequence is a smoke test under a native debugger,
 not a performance measurement, a 30-minute stability pass, or proof that
@@ -186,14 +191,95 @@ the separate native startup crash is fixed.
    verified projectile output, audio, resize, and another browser.
    The locked dialog and Next behavior worked in a clean single-session run;
    this does not explain the earlier report involving two connected sessions.
-3. Resolve the process-wide FXGL state constraint before testing or promising
-   multi-user hosting. Session affinity does not isolate global engine state.
+3. Validate the [single-session JVM pool](isolation.md), including worker
+   reuse, save-file reset, capacity response, and disconnect cleanup.
+   Session affinity does not isolate global engine state.
 4. A separate earlier attempt reached `RejectedExecutionException` after
    FXGL's static executor had shut down. Quit reaches FXGL shutdown, but
    the actual initiating action in that interactive attempt was not captured.
    Do not conflate this with the independently reproduced restart thread
    violation or assume Escape from the main menu shuts down FXGL.
+5. Local Linux prerequisites were installed with owner approval:
+   installed WSL 3.0.3.0 and enabled Virtual Machine Platform using
+   `dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart`.
+   DISM returned 3010 (success; restart required). Installed Docker Desktop
+   4.97.0 using
+   `winget install --id Docker.DockerDesktop --exact --source winget --override "install --user --backend=wsl-2" --accept-source-agreements --disable-interactivity`.
+   The download hash passed and installation completed successfully.
+   The owner restarted Windows; `docker version` then confirmed a Linux/amd64
+   engine and `docker run --rm hello-world` passed on 2026-10-29.
+   No firmware changes were necessary. Game execution and multi-worker
+   acceptance remain separate checks.
 
 The restart thread violation has a code fix and a passing browser replay.
 The native startup failure, full gameplay acceptance, session isolation,
 and hosting selection remain open.
+
+## Linux single-game validation
+
+The [container runbook](container.md) records build/run/cleanup commands and
+the real-browser smoke test. Linux execution uncovered native server-side
+audio-device initialization, which HTTP readiness alone did not catch.
+JPro now uses client-side HTML audio through its existing WebAPI; desktop
+continues using JavaFX media. No host audio device or disabled-audio fallback
+is used to get a successful game startup.
+
+The original initialization/restart bridge is now shared in
+[FxThread](../../src/main/java/com/dinosaur/dinosaurexploder/utils/FxThread.java).
+The game reached active gameplay and passed game-over restart in Linux.
+The final Linux build passed all 100 tests; the Windows regression suite
+passed 99 tests before the last dispatch test, followed by all 13 affected
+tests and focused Spotless checks. Client music/effects playback, music
+mute, ended-effect cleanup, and page-navigation cleanup were observed.
+This does not resolve the historical Windows native crash or complete
+multi-worker acceptance.
+
+## Bounded-pool validation (2026-10-30)
+
+The [pool runtime record](isolation.md) and [runbook](container.md) now include
+the actual two-worker image, startup/reset hooks, and browser findings.
+Two independent game JVMs worked concurrently; a used slot was recycled and
+its next occupant received fresh settings/progress while the other game
+remained usable. All 100 Linux Java tests and worker-reset shell tests passed.
+
+The test found and fixed retained save files across occupants and expiring
+browser audio URL permissions. Static audio playback, firing effects, and
+requests after the original permission lifetime passed. Missing/empty pool
+administration keys now abort before Java starts.
+
+Next gates, before public deployment:
+
+1. Revalidate the locally passing capacity signal and busy/retry UX through
+   the eventual public HTTPS ingress. The direct-pool image retains the
+   stock reconnect loop and must not be published directly.
+2. Revalidate management/API route blocking at that same public ingress.
+   The local Compose stack exposes only Nginx, which blocks known management
+   route families. The pool key alone does not protect aggregate routes.
+3. Finish separate-browser/profile, refresh/reconnect, repeated handoff,
+   shutdown, and bounded-file tests; run the full 30-minute/20-disconnect gates.
+4. Measure sustained gameplay and network behavior, including the main/static
+   server. The two-player pool has four JVMs, not two. A roughly 1.53 GiB
+   snapshot is not a resource budget. Static MP3 requests currently return
+   complete files even when clients request byte ranges.
+5. Only then select hosting, confirm region/budget/licensing with the owner,
+   and obtain approval before spending money or changing DNS.
+
+Three-player follow-up: the existing image accepted a runtime three-slot
+override and passed a short concurrent gameplay test with five JVMs.
+All three HUDs progressed in a common observation window; A/B restart and
+C-only bomb use preserved separate state. Sparse aggregate memory samples
+reached about 2.82 GiB without OOM under diagnostic 4 GiB / 4 CPU limits.
+The [runbook](container.md) records commands and caveats. This removes any
+ambiguity about a fundamental two-player limit but does not complete the
+sustained-concurrency, pacing, or latency acceptance gates.
+
+Ingress follow-up: the [local Compose stack](../../deploy/compose.yaml) now
+adds pinned Nginx/njs as a transparent WebSocket proxy and a sanitized capacity
+check, not a second allocator. Parser/handler tests, Nginx syntax, live route
+guards, and browser full/retry/last-slot-race tests passed. A released slot
+admitted a waiting browser without affecting the other worker. Actual backend
+outage and restore, invalid capacity responses, and a failed JPro script load
+produce explicit unavailable/retry behavior, not a false "server full".
+The ingress is non-root/read-only, with dropped capabilities, bounded logs,
+and a private backend. Desktop and direct single-game entry points are unchanged.
+See the [runbook](container.md) for reproduction and remaining limits.

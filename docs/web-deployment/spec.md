@@ -10,7 +10,7 @@ Planning baseline verified on 2026-10-27:
 - Upstream: `jvondermarck/dinosaur-exploder`, default branch `main`.
 - After fetching upstream, local HEAD and upstream main both pointed to
   `1723aef54901ea225786645b237e401b2872bdf0`.
-- Work branch: `feat/jpro-web-deployment`.
+- Work branch: `feat/web-deployment` (replaced the original planning branch).
 - The [Maven build](../../pom.xml) targets Java 21, includes Kotlin compilation,
   FXGL 21.1, and JPro 2025.3.3.
 - The existing [browser entry point](../../src/main/java/com/dinosaur/dinosaurexploder/DinosaurWebApp.java)
@@ -25,8 +25,10 @@ builds, supports independent concurrent players, or performs adequately.
 1. Reuse JPro first. Validate feasibility before investing in hosting automation.
 2. Leave the website on its existing hosting. Add a play link or integration
    only after a stable game endpoint exists.
-3. Package the game in a reproducible Linux container. Start with one game
-   instance behind an HTTPS reverse proxy; do not introduce replicas yet.
+3. Package the game in a reproducible Linux container. Use a bounded pool
+   of single-session JVMs behind JPro's load balancer, subject to the
+   [isolation validation](isolation.md). Begin with two workers for testing,
+   not an unmeasured production capacity promise.
 4. Prefer an always-on host near the initial audience for the first staging
    deployment. Select provider and size from measured resource requirements.
 5. Do not require Dokploy. Add orchestration only if it reduces demonstrated
@@ -105,7 +107,7 @@ Treat two players as a feasibility floor, not a production capacity claim.
 - Accounts, a leaderboard service, or a new multiplayer game mode.
 - A JavaScript/WebAssembly engine rewrite without a failed feasibility gate
   and a separate scope decision.
-- Horizontal scaling and session-preserving deployments.
+- Multi-host horizontal scaling and session-preserving deployments.
 
 ## Completion
 
