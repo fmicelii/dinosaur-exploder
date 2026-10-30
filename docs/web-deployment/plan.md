@@ -70,7 +70,7 @@ Exit: a reproducible Linux container with the same tested browser behavior.
 - [ ] Capture input-to-visible latency, client-visible pacing, RTT, CPU,
       container RSS, heap/GC, network traffic, and session counts.
 - [ ] Run 1 and 2 active sessions, then increase concurrency to find a safe cap.
-- [ ] Run the 30-minute stability and repeated-disconnect cleanup checks.
+- [ ] Run the 15-minute stability and repeated-disconnect cleanup checks.
 - [ ] Identify the bottleneck before applying targeted tuning.
 - [ ] Record pass/fail/unmeasured against every acceptance target.
 
@@ -255,8 +255,14 @@ Next gates, before public deployment:
 2. Revalidate management/API route blocking at that same public ingress.
    The local Compose stack exposes only Nginx, which blocks known management
    route families. The pool key alone does not protect aggregate routes.
-3. Finish separate-browser/profile, refresh/reconnect, repeated handoff,
-   shutdown, and bounded-file tests; run the full 30-minute/20-disconnect gates.
+3. Diagnose intermittent worker-startup failures observed during repeated
+   lifecycle testing. A fresh-stack uninterrupted 20-play/disconnect retest
+   passed without a code/configuration fix; this does not explain the earlier
+   failures. Finish separate-browser/profile, refresh/reconnect, repeated
+   handoff, shutdown, and bounded-file tests. Repair the stability harness's
+   game-over/click handling, investigate the truncated music response, and
+   complete the still-open 15-minute two-session stability gate (duration
+   revised by the owner on 2026-10-30).
 4. Measure sustained gameplay and network behavior, including the main/static
    server. The two-player pool has four JVMs, not two. A roughly 1.53 GiB
    snapshot is not a resource budget. Static MP3 requests currently return

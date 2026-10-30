@@ -2,6 +2,11 @@
 
 Status: single-game, local two-/three-worker smoke tests, and local ingress
 busy/retry checks passed; not a public multi-player deployment.
+Repeated lifecycle testing exposed intermittent worker-startup failures.
+A subsequent uninterrupted 20-cycle retest passed, but the original startup
+fault remains unexplained and the 15-minute stability gate remains open
+(revised by the owner on 2026-10-30; historical attempts below retain their
+original duration).
 See the [session isolation decision](isolation.md) before publishing an endpoint.
 For local multi-player use, prefer the [ingress stack](#local-ingress-stack)
 over the direct-pool diagnostic command.
@@ -116,7 +121,7 @@ and browser audio commands.
   continued and the active music resource played successfully; do not
   describe this run as warning-free.
 
-Full multi-player, disconnect, 30-minute stability, performance, and remote
+Full multi-player, disconnect, 15-minute stability, performance, and remote
 hosting acceptance remain open.
 
 ## Two-worker pool
@@ -354,6 +359,160 @@ was reused rather than rerun. Validation used project name
 - Final shutdown: ingress exited 0, pool exited 143, both `oom=false` and
   process ID 0. The project's containers and Compose network were removed,
   all shared test tabs were blanked, and `git diff --check` passed.
+
+### Lifecycle investigation (2026-10-30)
+
+Tested source commit `b64282feeab396a2fc8d1e1cc9aaab27a6bb6ba9`,
+Compose project `dinosaur-cleanup-validation`, Docker Linux/amd64 29.9.2,
+Temurin 21.0.13, and pinned JPro 2025.3.3. Pool limits were 4 GiB / 4 CPUs,
+with two configured player slots and one warm worker; ingress limits were
+128 MiB / 1 CPU. The integrated browser used focus emulation. No application
+or deployment code changed during this investigation.
+
+The browser harness navigated away after each allocation, then waited
+35 seconds before the next cycle. That pause is not a measured disconnect
+grace period.
+
+- First, 20 short start/bomb/shoot/disconnect cycles completed. Their snapshots
+  still showed the countdown, so they do **not** satisfy active-play acceptance.
+- A stricter harness waited 4.5 seconds, verified visible ship movement of
+  more than five pixels, used a bomb (HUD decreased to two), fired, and
+  disconnected. Twenty active-play cycles eventually completed, but in
+  interrupted batches: 11, then two, then seven. The last batch reused the
+  already-connected startup screen for its first game. Successful cycles
+  showed no HTML media errors. This is **not** a clean 20-cycle reliability
+  pass: a capacity request returned HTTP 503 between batches, and another
+  allocation exceeded the harness's 20-second startup wait.
+- Final aggregate counters were `sessionsStarted: 40`, `serversStopped: 40`,
+  and `serversStarted: 41`. The private instances API reported zero active
+  games. Safe process inspection found only load balancer PID 7, static
+  server PID 54, and warm player PID 6378; earlier game workers were gone.
+  These counters do not establish that every attempted startup succeeded.
+
+#### Startup reliability blocker
+
+Worker startup sometimes stopped after logging initialization without
+reaching the server-started message. One slot-2 attempt reset its saves at
+02:28:15.974 UTC, configured logging at 02:28:16.497, and was declared failed
+by the load balancer at 02:29:15.590. Its error log contained no stack trace.
+Later replacement workers started successfully without a code/config change.
+
+The private status endpoint also stalled: one direct request exceeded ten
+seconds; later requests took 7.456 seconds, 1.631 seconds, then approximately
+two milliseconds. Inspection of the pinned load-balancer controller found
+that status rendering calls `CompletableFuture.get()` for worker information.
+A pending worker startup can therefore block capacity telemetry. The ingress
+correctly returns unavailable after its two-second upstream timeout rather
+than inventing a capacity answer. Merely increasing that timeout would not
+repair the worker-startup failure.
+
+A bounded watcher attempted to capture player thread stacks on another
+status stall. No stall recurred during its observation window, including
+the last seven cycles, so no hung-worker thread dump was obtained. The
+underlying startup cause is **unconfirmed**. Capture the affected existing
+worker's threads while stalled before choosing a runtime/configuration fix;
+do not treat later successful allocations as resolving this blocker.
+
+#### Cleanup and resource observations
+
+These are sparse diagnostics, not peak sizing, sustained-concurrency
+measurements, or proof of leak-free behavior:
+
+| Checkpoint | Pool cgroup memory | Pool data | Files |
+|---|---:|---:|---:|
+| Before first 20 short cycles | Not recorded here | 96,504 KiB | 159 |
+| After first 20 short cycles, before explicit GC | 1,181,728,768 bytes | 97,856 KiB | 173 |
+| Final idle checkpoint after 40 allocations, before explicit GC | 912,461,824 bytes | 98,712 KiB | 173 |
+
+During the short-cycle monitor, sampled memory ranged from 985,083,904 to
+1,719,902,208 bytes. During the stricter-cycle monitor, it ranged from 870,068,224
+to 1,805,189,120 bytes; this monitor did not cover the entire final batch.
+Final cgroup `oom`, `oom_kill`, and `max` counters were zero.
+Final `/tmp` usage was 132 KiB. File growth was predominantly logs.
+The pinned server already rotates five log categories at 2 MB, retaining
+three ZIP archives per category; rotation was inspected, not forced in this
+run. The largest observed final worker log was 634,057 bytes. Do not remove
+existing rotation or claim it was empirically stress-tested.
+
+Explicit `GC.run` followed by `GC.heap_info`, using a disposable pinned JDK
+helper with the target container's PID namespace, produced:
+
+| JVM role | Early warm checkpoint used heap | After first 20 short cycles | Final used heap |
+|---|---:|---:|---:|
+| Persistent load balancer | 24,117 KiB | 20,647 KiB | 18,936 KiB |
+| Persistent static server | 11,815 KiB | 12,231 KiB | 10,398 KiB |
+| Warm replacement player | Not recorded | 10,715 KiB | 10,381 KiB |
+
+The warm player is a different process at each checkpoint. Final aggregate
+cgroup memory after diagnostic GC was 866,631,680 bytes. GC is an
+investigative intervention, not representative gameplay performance.
+Stable post-GC heaps do not rule out native retention or future growth.
+Cancelled music downloads still generated browser request-aborted events.
+
+All game tabs were blank at completion. Both bounded monitoring helpers
+finished. `docker stop --time 20` stopped only this project's two containers:
+ingress exited 0, pool exited 143, both `oom=false`, `running=false`, PID 0.
+`docker compose --project-name dinosaur-cleanup-validation --file deploy\compose.yaml down --timeout 20`
+then removed both containers and their network; no project containers or
+port-8081 listener remained. No Java tests were rerun because this follow-up
+changes documentation only. The next acceptance run must be uninterrupted
+after the startup blocker has an identified and verified resolution.
+
+### Diagnostic retry and uninterrupted cleanup retest (2026-10-30)
+
+With owner approval, recreated `dinosaur-cleanup-validation` from the same
+existing images/source, without changing application code or runtime settings.
+No Java debug session was active. A bounded status watcher was ready to dump
+existing JVM threads if a private status request exceeded two seconds.
+
+- Forty startup-screen/disconnect cycles completed without a failed
+  allocation. Connection-to-startup-screen times were 2,406-3,021 ms on
+  local loopback. These were menu cycles, not active gameplay.
+- Then **20 active-play/disconnect cycles completed uninterrupted**. Every
+  cycle verified ship movement, bomb decrement to two, and firing after the
+  countdown. No HTML media errors were observed in those cycles. Connection
+  times were 2,379-3,018 ms; these are not input-latency or Internet measurements.
+- After 60 allocations, counters were `sessionsStarted: 60`,
+  `serversStopped: 60`, `serversStarted: 61`; the private instances API
+  reported zero active games. Only load balancer PID 7, static server PID 53,
+  and warm worker PID 7820 remained. Log scans counted zero
+  `Server failed to start`, `OutOfMemoryError`, `SIGSEGV`, `scala.MatchError`,
+  or `RejectedExecutionException` occurrences.
+- Idle data occupied 99,244 KiB / 174 files; `/tmp` was 132 KiB.
+  Cgroup OOM and limit-hit counters were zero. Before diagnostic GC,
+  aggregate memory was 1,178,034,176 bytes; afterward it was 1,070,407,680.
+  Post-GC used heaps were 18,535 KiB (load balancer), 10,929 KiB (static),
+  and 10,738 KiB (warm worker). These are new processes, so comparison with
+  the preceding investigation is cross-run evidence, not same-process
+  retained-growth measurement.
+- The bounded watcher completed without another status stall. No hung-worker
+  dump was captured. No startup fix has been identified or verified:
+  passing the retest does not erase the earlier failures.
+
+Two sessions were subsequently started for a proposed 30-minute stability
+test: first ship/Easy and second ship/Normal, distinct instance IDs and JVMs
+(7820 and 8137). Both integrated-browser tabs had 838 x 816 viewports, DPR 1,
+and focus emulation. They were not separate browser profiles. The full-pool
+ingress shell checks passed while both sessions were allocated.
+
+**The 30-minute test did not complete.** The harness first needed to handle
+the normal zero-lives-to-game-over transition. Later A's restart click
+reported an element-detachment timeout even though the next snapshot showed
+the restarted five-life game. A's recorded segment lasted 421,431 ms, with
+18 completed restarts and 208 movement/shooting steps; its observed JPro
+state remained `running`. B's final deferred result was unavailable, so no
+complete stability result is claimed for it. B also reported a
+`net::ERR_CONTENT_LENGTH_MISMATCH` for music before shutdown; the cause and
+playback impact are unconfirmed and require investigation. Do not describe
+this attempted stability run as error-free.
+
+Fifteen sparse resource samples from 03:27:12 to 03:34:13 UTC ranged from
+2,370,772,992 to 3,707,645,952 bytes. No sampled OOM or limit-hit counter
+increment occurred. This partial, restart-heavy run is not a production
+memory budget. Both games were blanked and the resource helper stopped when
+the owner asked about finishing. Ingress exited 0, pool exited 143, both
+`oom=false` and PID 0; both containers and their Compose network were removed.
+Only documentation changed; Java tests were not rerun.
 
 ### Stop the Compose stack
 

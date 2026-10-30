@@ -1,8 +1,10 @@
 # Browser session isolation decision
 
 Status: local two-/three-worker smoke tests, player handoff, ingress busy/retry,
-and known management-route blocking passed. Public HTTPS validation and
-sustained acceptance remain open.
+and known management-route blocking passed. Repeated lifecycle testing exposed
+intermittent worker-startup failures. A later uninterrupted 20-cycle cleanup
+retest passed, but startup diagnosis, public HTTPS validation, and sustained
+acceptance remain open.
 
 ## Evidence
 
@@ -157,7 +159,7 @@ With that hook installed, the real-browser handoff passed:
   used a bomb, fired with browser SFX, and paused successfully.
 
 These are observed PIDs and one handoff, not stable identifiers or a measured
-disconnect grace period. Twenty-cycle cleanup and 30-minute stability tests
+disconnect grace period. Twenty-cycle cleanup and 15-minute stability tests
 remain required.
 
 ### Findings in the direct-pool image
@@ -228,3 +230,48 @@ denials, invalid telemetry, a real backend outage, and recovery after restart.
 The ingress also starts with the backend absent and resolves its Docker
 service name dynamically. This is not a comprehensive security review,
 HTTPS test, cross-browser pass, or sustained-capacity result.
+
+## Repeated lifecycle follow-up (2026-10-30)
+
+On source commit `b64282feeab396a2fc8d1e1cc9aaab27a6bb6ba9`, 20 short
+launch/countdown cycles completed, followed by 20 verified active-play cycles
+in interrupted batches of 11, two, and seven. The stricter cycles verified
+ship movement, bomb decrement, and firing before navigating away.
+**The uninterrupted 20-cycle reliability gate has not passed.**
+
+Between batches, worker startup intermittently failed or exceeded the
+20-second browser wait. The pinned load balancer's status rendering waits
+on worker futures, so these stalls also blocked capacity telemetry; the
+ingress correctly returned HTTP 503/unavailable. A direct private status
+request exceeded ten seconds. Increasing only the proxy timeout is not
+a root-cause fix.
+
+The last seven cycles completed without another captured stall. A bounded
+thread-dump watcher did not reproduce the failure, leaving its underlying
+cause unconfirmed. Identify the blocked startup path before changing runtime
+settings or claiming production readiness.
+
+After 40 total game allocations, the pool reported zero active instances.
+Only the persistent load balancer, static server, and one warm player JVM
+remained. No OOM occurred; final idle data occupied 98,712 KiB / 173 files,
+with 132 KiB in `/tmp`. Post-GC persistent heaps did not increase between
+the measured checkpoints, but these sparse diagnostics do not prove absence
+of native leaks or sustained capacity. Existing pinned JPro log rotation was
+verified by inspection, not stress-tested. The stack and monitoring helpers
+were stopped; the [runbook](container.md#lifecycle-investigation-2026-10-30)
+records measurements and limitations.
+
+A subsequent fresh-stack retest completed 40 menu allocation/disconnect
+cycles followed by 20 uninterrupted active-play/disconnect cycles. Final
+counters showed 60 allocations, zero active instances, and only the persistent
+servers plus one warm worker remaining; no startup failures or OOM were
+observed in that run. No code/configuration fix was made, and the original
+startup failure did not recur while the thread-capture watcher was active.
+The startup cause is still unresolved, not proven fixed.
+
+The following two-session stability attempt stopped before 30 minutes.
+Harness transition/click errors and an unconfirmed truncated music response
+prevent a clean result. Sparse aggregate memory reached 3,707,645,952 bytes
+within the diagnostic 4 GiB limit, without sampled OOM/limit hits. See the
+[retry record](container.md#diagnostic-retry-and-uninterrupted-cleanup-retest-2026-10-30)
+before interpreting the successful cleanup retest as broader acceptance.

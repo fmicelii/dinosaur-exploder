@@ -73,7 +73,7 @@ and network conditions for every performance result.
 | Warm load | Playable within 10 seconds on a defined warm-server test connection |
 | Interaction | p95 input-to-visible-response at most 150 ms with measured RTT at most 50 ms |
 | Pacing | Target 60 updates/second; record client-visible frame intervals and stalls over 100 ms during active play |
-| Stability | Two concurrent real game sessions for 30 minutes without unexplained disconnects, OOM, or crashes |
+| Stability | Two concurrent real game sessions for 15 minutes without unexplained disconnects, OOM, or crashes |
 | Cleanup | After 20 connect/play/disconnect cycles, no increasing retained-session count; inspect post-GC memory for retained growth |
 | Routing | HTTPS assets and secure WebSockets work without mixed-content failures |
 | Operations | Restart, update interruption, and rollback behavior demonstrated and documented |
@@ -83,6 +83,16 @@ ping time, JavaFX pulse rate, or idle connections are not substitutes.
 If client-visible timing cannot initially be instrumented, report it as
 unmeasured rather than passing the gate from subjective playtesting.
 Treat two players as a feasibility floor, not a production capacity claim.
+
+On 2026-10-30, the owner changed the required stability duration from 30 to
+15 minutes. The test remains required; earlier incomplete attempts do not
+satisfy it. Initial hosting planning must use a zero monthly spending budget.
+The owner reports access to a school-managed Dokploy server with 31 GB RAM,
+approximately six CPU cores, and 2,010 GB disk. Available resource allocation,
+server region, no-additional-cost use, and permission for a public game have
+not yet been verified. Deployment work is paused pending the teacher's answer.
+Prefer proximity to Argentina where feasible, while recognizing that players
+may be worldwide.
 
 ## Operations and boundaries
 
