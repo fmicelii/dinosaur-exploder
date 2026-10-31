@@ -1,5 +1,6 @@
 # Web deployment implementation plan
 
+Current status and how to resume: [README](README.md).
 Requirements and acceptance gates: [Specification](spec.md).
 
 ## Working rules
@@ -32,19 +33,22 @@ from deployment hypotheses. A failed gate blocks dependent work, not reporting.
 
 ## 2. Establish independent browser sessions
 
-- [ ] Trace FXGL lifecycle, global/static state, input handlers, save files,
+- [x] Trace FXGL lifecycle, global/static state, input handlers, save files,
       settings, achievements, timers, and disconnect cleanup.
-- [ ] Exercise two separate browser contexts with different actions/settings.
+- [x] Exercise two separate browser contexts with different actions/settings.
+      (Same browser profile; separate-profile testing is still open.)
 - [x] Decide from evidence whether the existing embedding supports concurrent
       isolated sessions in one process. Do not assume JPro isolation solves
       FXGL global state.
-- [ ] Implement only necessary browser compatibility/isolation changes.
+- [x] Implement only necessary browser compatibility/isolation changes.
       If process isolation is required, estimate its resource and operational
       cost before choosing an architecture.
 - [x] Use isolated session-only progress initially if durable browser saves
       require new identity/storage infrastructure; leave desktop saves intact.
 - [x] Add targeted regression tests and rerun affected desktop tests.
 - [ ] Verify refresh, disconnect, restart, and resource cleanup.
+      (Disconnect, restart and 20-cycle cleanup passed; refresh/reconnect
+      behavior is untested.)
 
 Exit: the specification's isolation requirements pass. Otherwise document
 the blocker and reconsider the execution model before hosting work.
@@ -55,7 +59,7 @@ the blocker and reconsider the execution model before hosting work.
       do not assume an archive name, profile, port, or JVM option mechanism.
 - [x] Select a supported Linux runtime image from verified native dependencies.
 - [x] Add a multi-stage Dockerfile and focused build-context exclusions.
-- [ ] Verify configuration injection, non-root execution, signal handling,
+- [x] Verify configuration injection, non-root execution, signal handling,
       readiness, and useful error logs.
 - [ ] Set measured resource limits with native-memory headroom.
 - [x] Build and run from a clean source context; verify gameplay and restart.
@@ -80,19 +84,22 @@ to solve it.
 
 ## 5. Deploy staging and validate the network path
 
-- [ ] Compare an appropriately sized always-on VPS and suitable managed hosting
+- [x] Compare an appropriately sized always-on VPS and suitable managed hosting
       using capacity, region/RTT, WebSocket behavior, license terms, cost,
-      and maintenance burden.
+      and maintenance burden. (Superseded: the owner's approved school Dokploy
+      server was used at zero cost; license terms are still pending.)
 - [x] Confirm intended audience region and monthly spending ceiling with owner.
       Argentina is the initial preference, with worldwide players possible;
       zero additional monthly spending.
 - [x] Obtain approval for the existing school host and a new Dokploy project
       (owner confirmation on 2026-10-31). DNS changes are not authorized.
-- [ ] Configure HTTPS, secure WebSockets, and tested proxy timeout behavior.
+- [x] Configure HTTPS, secure WebSockets, and tested proxy timeout behavior.
       Reuse JPro heartbeat behavior where supported; do not invent a protocol.
-- [ ] Enforce the measured active-session cap with an explicit busy response.
+- [x] Enforce the measured active-session cap with an explicit busy response.
+      (Cap of two slots; sustained capacity is still unmeasured.)
 - [ ] Run real-browser functional, isolation, stability, and latency checks
-      against staging, not merely an HTTP health check.
+      against staging, not merely an HTTP health check. (One game over public
+      HTTPS passed; two-player 15-minute and latency checks are open.)
 - [ ] Demonstrate update interruption, failure recovery, and rollback.
 
 Exit: an accessible endpoint meeting the gates with understood operating costs.
@@ -196,7 +203,11 @@ The successful browser sequence is a smoke test under a native debugger,
 not a performance measurement, a 30-minute stability pass, or proof that
 the separate native startup crash is fixed.
 
-## Current blockers and next action
+## Historical blockers and next actions (2026-10-28/29, superseded)
+
+This section records the state when it was written. Several items below were
+later resolved or replaced; see the [status guide](README.md) for current
+open items.
 
 1. Capture a native crash dump or otherwise isolate the Windows initialization
    crash. The faulting Windows RPC module alone does not identify a JavaFX,
