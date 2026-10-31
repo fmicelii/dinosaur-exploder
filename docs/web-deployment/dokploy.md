@@ -4,8 +4,10 @@ Status: school hosting approved by the owner on 2026-10-31. The `Dinosaur
 Exploder` project and `browser-staging` Docker Compose service exist in Dokploy
 and were deployed manually on 2026-10-31. Autodeploy is off. **The service was
 stopped the same day (Stop button) until the JPro license answer arrives**;
-its public hostname currently returns 404. Use **Start** on the General tab to
-resume; use **Deploy** after changing the environment or source.
+its public hostname currently returns 404. Use **Deploy** on the General tab
+to resume, not Start: the owner replaced `POOL_ADMIN_KEY` after the stop, and
+only a deploy recreates the container with the new value. Use Deploy again
+after any environment or source change.
 
 ## Release prerequisites
 
