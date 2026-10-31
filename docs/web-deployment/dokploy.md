@@ -79,6 +79,22 @@ startup grace and consecutive checks. Docker does not restart a container
 merely because it is unhealthy; `unless-stopped` restarts exited processes.
 Investigate recurring startup failures rather than increasing timeouts.
 
+## Selected hostname
+
+On 2026-10-31 the owner chose `dinosaurexplorer`. The school's existing
+services pattern is `<name>.policloudservices.ipm.edu.ar` (for example the
+Mind-First project). A read-only lookup showed wildcard DNS for that suffix
+resolving to the same school server address as the dashboard, so no DNS
+change was needed:
+
+`https://dinosaurexplorer.policloudservices.ipm.edu.ar`
+
+The domain is configured in Dokploy on service `ingress`, container port
+`8080`, path `/`, HTTPS with Let's Encrypt. It is not live until the first
+manual deployment, and public sharing remains gated on the JPro license
+answer. The other school projects' configuration was only read to learn
+this naming pattern; nothing in them was changed.
+
 ## Host setup and external validation
 
 1. Confirm the staging configuration is present on the selected Git branch.
@@ -99,6 +115,51 @@ Investigate recurring startup failures rather than increasing timeouts.
    route denials at the outer proxy; an HTTP landing page alone is insufficient.
 8. Run the 15-minute stability gate and record server/browser conditions,
    CPU/memory, OOM events, player worker generations, and media failures.
+
+## First school-host staging deployment (2026-10-31)
+
+Manual deployment of the `browser-staging` service at source commit `cb07a82`
+(plus later documentation) on the school Dokploy v0.30.10 host:
+
+- Build: the Dockerfile ran the Java test suite on the shared host: 100 tests,
+  0 failures/errors/skipped; both containers started. The build took roughly
+  five to six minutes. Its peak CPU/RAM was **not measured**: Dokploy's
+  Monitoring tabs reported frozen or zero values with HTTP 401 console
+  errors, so they were not used as evidence.
+- Server baseline before deployment (Dokploy's server-wide page, a single
+  reading): 7.56% CPU, 13.13 of 30.96 GiB RAM, 28.4 of 2,010.5 GB disk.
+- Configuration check: the pool container is limited to 4 GiB and 4 CPUs.
+- Environment: `POOL_ADMIN_KEY` and `POOL_CAPACITY=2` are set in Dokploy's
+  Environment tab; the key was generated in the browser. **The browser
+  automation's page snapshot exposed it in plain text during setup, so replace
+  it with a key only the owner knows before any public launch.** It protects
+  only the private pool interface, which the ingress blocks.
+- Let's Encrypt issued a trusted certificate roughly five minutes after the
+  first deploy; Traefik's default certificate was served until then.
+- External checks from the owner's development machine over the public
+  hostname: HTTPS 200 with trusted certificate for the landing page, static
+  assets, JPro client and audio; HTTP redirects to HTTPS; the capacity API
+  returned `{"full":false}`; `/loadbalancer`, `/loadbalancer/status`,
+  `/jpro/api/instances`, `/_internal/pool-status` and an encoded variant
+  returned 404.
+- One real game through the public HTTPS/WSS hostname: the startup screen
+  appeared after about 6.2 seconds on a cold load; ship selection, Easy start,
+  ship movement and a bomb worked; JPro stayed `running`; no HTML audio error.
+  This is a functional smoke test, not a latency or smoothness measurement.
+- Container counters read through Dokploy's terminal (cgroup files): with one
+  unattended game and one warm worker, four Java processes, memory was
+  1.68-1.70 GB (about 1.56-1.58 GiB) of the 4 GiB limit, and CPU averaged
+  about 0.09-0.16 cores over 60 seconds (`cpu.max` 4 cores). OOM counters were
+  zero. This is one short idle-ish sample, not a capacity or peak measurement.
+
+Resource sampling for the owner's manual play session was started with a
+bounded 20-minute shell loop writing to the pool container's `/tmp/res.log`.
+It was read after four minutes (24 samples, taken while the owner played in
+Brave) and before the container was recreated: memory averaged 1,378 MiB with
+a peak of 1,664 MiB, and CPU averaged 0.32 cores with a short spike to about
+2.1 cores. Java processes never exceeded four, so only one game ran at a time;
+this is not a two-player, 15-minute, or smoothness measurement. The owner
+reported the game worked in Brave.
 
 ## Updates and rollback
 
