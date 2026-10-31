@@ -10,6 +10,8 @@ original duration).
 See the [session isolation decision](isolation.md) before publishing an endpoint.
 For local multi-player use, prefer the [ingress stack](#local-ingress-stack)
 over the direct-pool diagnostic command.
+For the approved school host, use the [Dokploy staging runbook](dokploy.md)
+and its port-free configuration rather than publishing the local test port.
 
 ## Requirements
 

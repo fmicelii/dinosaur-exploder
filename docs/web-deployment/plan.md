@@ -83,8 +83,11 @@ to solve it.
 - [ ] Compare an appropriately sized always-on VPS and suitable managed hosting
       using capacity, region/RTT, WebSocket behavior, license terms, cost,
       and maintenance burden.
-- [ ] Confirm intended audience region and monthly spending ceiling with owner.
-- [ ] Obtain approval before provisioning or changing DNS.
+- [x] Confirm intended audience region and monthly spending ceiling with owner.
+      Argentina is the initial preference, with worldwide players possible;
+      zero additional monthly spending.
+- [x] Obtain approval for the existing school host and a new Dokploy project
+      (owner confirmation on 2026-10-31). DNS changes are not authorized.
 - [ ] Configure HTTPS, secure WebSockets, and tested proxy timeout behavior.
       Reuse JPro heartbeat behavior where supported; do not invent a protocol.
 - [ ] Enforce the measured active-session cap with an explicit busy response.
@@ -107,6 +110,19 @@ Exit: an accessible endpoint meeting the gates with understood operating costs.
 Suggested contribution boundaries: browser correctness, container packaging,
 then hosting/website integration. Adjust if upstream maintainers prefer a
 different review structure.
+
+## Approved school-host staging (2026-10-31)
+
+Created a dedicated `Dinosaur Exploder` project and `browser-staging` Docker
+Compose service in the approved school Dokploy account. Autodeploy remains
+off; no containers or public domain have been deployed. The
+[Dokploy runbook](dokploy.md) records configuration, license prerequisites,
+network isolation, resource limits, and manual deployment/rollback steps.
+
+The official JPro pricing page offers free educational licenses by application
+and free development/staging use. The owner has no educational license yet;
+request public-game coverage before production/beta release. Server capacity,
+hostname, final HTTPS routing, and the 15-minute stability gate remain open.
 
 ## Evidence and decision record
 

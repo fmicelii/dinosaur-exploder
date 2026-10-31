@@ -89,8 +89,10 @@ On 2026-10-30, the owner changed the required stability duration from 30 to
 satisfy it. Initial hosting planning must use a zero monthly spending budget.
 The owner reports access to a school-managed Dokploy server with 31 GB RAM,
 approximately six CPU cores, and 2,010 GB disk. Available resource allocation,
-server region, no-additional-cost use, and permission for a public game have
-not yet been verified. Deployment work is paused pending the teacher's answer.
+server region and no-additional-cost resource allocation remain unverified.
+On 2026-10-31, the owner confirmed the teacher approved hosting and authorized
+creating a new Dokploy project. Staging preparation has resumed; public
+production access still requires runtime-license and HTTPS validation.
 Prefer proximity to Argentina where feasible, while recognizing that players
 may be worldwide.
 
