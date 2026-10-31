@@ -7,6 +7,12 @@ school's Dokploy server (staging). It works end to end. It is **not publicly
 announced**: a JPro runtime-license answer is pending, and a few acceptance
 checks are still open.
 
+**The staging service was stopped on 2026-10-31** at the owner's request until
+JPro answers, so the address below currently returns 404. To bring it back:
+Dokploy -> Dinosaur Exploder -> browser-staging -> General -> **Start**
+(settings, domain and environment are preserved). Replace the admin key before
+or right after restarting (see open item 2).
+
 Staging address: <https://dinosaurexplorer.policloudservices.ipm.edu.ar>
 
 Work branch: `feat/web-deployment` on `fmicelii/dinosaur-exploder`, based on

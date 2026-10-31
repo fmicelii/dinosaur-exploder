@@ -1,9 +1,11 @@
 # Dokploy staging deployment
 
-Status: school hosting approved by the owner on 2026-10-31. The new
-`Dinosaur Exploder` project and `browser-staging` Docker Compose service have
-been created in Dokploy. Autodeploy is off. No school-server containers have
-been started and no public game hostname has been assigned.
+Status: school hosting approved by the owner on 2026-10-31. The `Dinosaur
+Exploder` project and `browser-staging` Docker Compose service exist in Dokploy
+and were deployed manually on 2026-10-31. Autodeploy is off. **The service was
+stopped the same day (Stop button) until the JPro license answer arrives**;
+its public hostname currently returns 404. Use **Start** on the General tab to
+resume; use **Deploy** after changing the environment or source.
 
 ## Release prerequisites
 
