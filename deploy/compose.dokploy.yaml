@@ -1,7 +1,7 @@
 services:
   pool:
     extends:
-      file: compose.yaml
+      file: compose.services.yaml
       service: pool
     restart: unless-stopped
     labels:
@@ -10,9 +10,8 @@ services:
       - backend
   ingress:
     extends:
-      file: compose.yaml
+      file: compose.services.yaml
       service: ingress
-    ports: !reset []
     restart: unless-stopped
     networks:
       - backend

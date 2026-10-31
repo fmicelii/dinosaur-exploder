@@ -50,11 +50,14 @@ Select **Docker Compose**, not Docker Stack. Configure the public Git provider:
 | TLS | HTTPS with a valid certificate for the selected hostname |
 
 The [staging Compose file](../../deploy/compose.dokploy.yaml) extends the
-[local services](../../deploy/compose.yaml), preserving their pinned builds,
+[port-free shared services](../../deploy/compose.services.yaml), preserving their pinned builds,
 save reset, resource limits, tmpfs, non-root ingress, and bounded logs.
-It uses `!reset` to remove the local published port; require Docker Compose
-2.24.4 or newer and verify that the installed Dokploy preview accepts that
-tag and resolves the referenced file before deploying.
+The [local Compose entry](../../deploy/compose.yaml) adds a loopback-only
+test port; staging never inherits it. Use Docker Compose with `extends`
+support and verify that Dokploy preserves the referenced file in the checkout.
+No custom YAML tags are required. Dokploy v0.30.10's preview stripped an
+initial `!reset` tag, which would allow an inherited port to reappear during
+Compose merging; the shared port-free services avoid that problem entirely.
 
 Neither service publishes a host port. The pool joins only the
 project-scoped `backend` network and has `traefik.enable=false`. Only ingress
@@ -116,6 +119,11 @@ Local Compose rendering passed with Docker Compose 5.6.1:
   pool-only backend membership, ingress edge membership, and inherited limits.
 - `docker compose --file deploy\compose.yaml config --quiet`: passed;
   the existing local configuration still parses.
+- After extracting the shared port-free services, the complete rendered local
+  configuration matched the committed `56a637a` baseline exactly. Rendering
+  staging again passed zero-port, edge-network membership, pool-routing, and
+  exact memory-limit assertions. This verifies the existing local behavior
+  without relying on Dokploy preserving a custom YAML tag.
 - Local staging startup using the previously built images and a disposable
   loopback-port/network override passed. `nginx -t` and
   `sh /etc/nginx/check.sh` passed inside ingress; its new health check
